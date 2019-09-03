@@ -6,67 +6,34 @@ let s:is_win = has('win32') || has('win64')
 
 " {{{ Exposed
 
-function! translate#run(source_target) abort
+function! translate#run_replace(type) abort
+    call translate#run(a:type, '', '!')
+endfunction
+
+function! translate#run(type, ...) range abort
   if !s:check_executable() | return | endif
+
+  let l:source_target = get(a:, 1, '')
+  let l:replace = get(a:, 2, '')
 
   let l:regtype = getregtype('a')
   let l:regtext = getreg('a')
-  silent! %yank a
 
-  let l:translation = s:translate(a:source_target, @a)
-  call translate#open_trans_buf(l:translation)
-
-  call setreg('a', l:regtext, l:regtype)
-endfunction
-
-function! translate#visual(source_target) range abort
-  if !s:check_executable() | return | endif
-
-  let l:regtype = getregtype('a')
-  let l:regtext = getreg('a')
-  silent! normal! gv"ay
-
-  let l:translation = s:translate(a:source_target, @a)
-  call translate#open_trans_buf(l:translation)
-
-  call setreg('a', l:regtext, l:regtype)
-endfunction
-
-function! translate#replace(source_target) range abort
-  if !s:check_executable() | return | endif
-
-  let l:regtype = getregtype('a')
-  let l:regtext = getreg('a')
-  silent! normal! gv"ay
-
-  let @a = s:translate(a:source_target, @a)
-
-  silent! normal! gv"ap
-
-  call setreg('a', l:regtext, l:regtype)
-endfunction
-
-function! translate#replace_operator(type) abort
-    call translate#operator(a:type, 1)
-endfunction
-
-function! translate#operator(type, ...) abort
-  if !s:check_executable() | return | endif
-
-  let l:replace = get(a:, 1, 0)
-  let l:regtype = getregtype('a')
-  let l:regtext = getreg('a')
-
-  if a:type ==# 'char'
+  if a:type ==# 'visual'
+    silent! normal! gv"ay
+  elseif a:type ==# 'lrange'
+    silent! exe 'normal! '.a:firstline.'GV'.a:lastline.'G"ay'
+  elseif a:type ==# 'char'
     silent! normal! `[v`]"ay
   elseif a:type ==# 'line'
     silent! normal! '[V']"ay
   else
-    " Forget about blockwise selection for now
+    " Forget about blockwise operator for now, it's unlikely
     return
   endif
 
-  let @a = s:translate('', @a)
+  let l:seltype = a:type ==# 'visual' ? visualmode() : a:type[0]
+  call setreg('a', s:translate(l:source_target, @a), l:seltype)
   if l:replace !=# ''
     silent! normal! gv"ap
   else
@@ -112,8 +79,9 @@ function! s:translate(source_target, text) abort
   let l:source_target = s:get_source_target(a:text, a:source_target)
 
   redraw | echo 'Translating ' . l:source_target . '...'
-  let l:cmd = s:base_cmd . ' ' . l:source_target
-  let l:result = system(l:cmd, a:text)[:-2]
+  " let l:cmd = s:base_cmd . ' ' . l:source_target
+  " let l:result = system(l:cmd, a:text)[:-2]
+  let l:result = system(s:base_cmd, a:text)[:-2]
 
   redraw | echo ''
   return l:result
