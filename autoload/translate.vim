@@ -82,6 +82,7 @@ function! translate#open_trans_buf(text) abort
   silent! botright 8new Translation
   set buftype=nofile
   set bufhidden=hide
+  set nobuflisted
   set noswapfile
   let s:trans_buf = bufnr('%')
 
